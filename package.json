@@ -1,0 +1,36 @@
+{
+  "name": "amari",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Amari — a local-first, cyberpunk CLI-style webapp for running LLM agents and workflows across Claude, Gemini, Kimi, OpenAI, OpenRouter and local Ollama models.",
+  "type": "module",
+  "bin": {
+    "amari": "./bin/amari.mjs"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "launch": "node ./bin/amari.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.2",
+    "next": "^16.2.9",
+    "openai": "^6.42.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  }
+}

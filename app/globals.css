@@ -1,0 +1,243 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  --bg: #05070d;
+  --bg-soft: #0a0f1c;
+  --bg-panel: #0b1322;
+  --bg-raised: #0e1830;
+
+  --line: #13263f;
+  --line-bright: #1d3e63;
+
+  --ink: #cfe8ff;
+  --ink-dim: #7f9dc4;
+  --ink-faint: #4f6a86;
+
+  --cyan: #00e5ff;
+  --blue: #2b7bff;
+  --sky: #38bdf8;
+  --violet: #9b6bff;
+  --green: #27e0a4;
+  --amber: #ffb454;
+  --red: #ff4d6d;
+
+  --glow: rgba(0, 229, 255, 0.5);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(
+      1100px 700px at 78% -10%,
+      rgba(43, 123, 255, 0.13),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 600px at 8% 110%,
+      rgba(0, 229, 255, 0.1),
+      transparent 55%
+    ),
+    linear-gradient(180deg, #05070d 0%, #04060b 100%);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+/* ── CRT overlays ─────────────────────────────────────────────────────────── */
+.crt-scanlines {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.16) 3px,
+    rgba(0, 0, 0, 0) 4px
+  );
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+}
+
+.crt-vignette {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9997;
+  background: radial-gradient(
+    120% 120% at 50% 50%,
+    transparent 60%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+}
+
+/* ── Scrollbars ───────────────────────────────────────────────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-bright) transparent;
+}
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--line-bright);
+  border-radius: 0;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--cyan);
+  background-clip: padding-box;
+}
+
+::selection {
+  background: rgba(0, 229, 255, 0.28);
+  color: #ffffff;
+}
+
+input,
+textarea,
+button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+textarea {
+  resize: none;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: var(--cyan);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* ── Reusable cyberpunk utilities ─────────────────────────────────────────── */
+.glow {
+  text-shadow: 0 0 8px var(--glow);
+}
+.glow-cyan {
+  color: var(--cyan);
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.45);
+}
+
+.neon-border {
+  border: 1px solid var(--line-bright);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 229, 255, 0.04),
+    0 0 18px rgba(0, 229, 255, 0.05);
+}
+
+.panel {
+  background: linear-gradient(
+    180deg,
+    rgba(14, 24, 48, 0.72),
+    rgba(8, 14, 28, 0.72)
+  );
+  border: 1px solid var(--line);
+  backdrop-filter: blur(2px);
+}
+
+/* Animated top-edge accent line for headers */
+.edge-accent {
+  position: relative;
+}
+.edge-accent::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--cyan) 20%,
+    var(--blue) 50%,
+    var(--violet) 80%,
+    transparent
+  );
+  opacity: 0.55;
+}
+
+.cursor-blink::after {
+  content: "▋";
+  margin-left: 1px;
+  color: var(--cyan);
+  animation: blink 1.1s steps(1) infinite;
+}
+
+/* Thin uppercase label */
+.tag {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* Chat markdown-ish rendering */
+.stream-body {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.stream-body code {
+  background: rgba(0, 229, 255, 0.08);
+  border: 1px solid var(--line);
+  padding: 0 4px;
+  border-radius: 2px;
+  color: var(--sky);
+}
+.stream-body pre {
+  background: #05080f;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--cyan);
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+.stream-body pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--ink);
+}
+
+/* Focus ring */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 1px var(--cyan),
+    0 0 16px rgba(0, 229, 255, 0.3);
+}
