@@ -20,7 +20,19 @@ function toOpenAIMessages(messages: AgentMessage[], system?: string): any[] {
   if (system) out.push({ role: "system", content: system });
   for (const m of messages) {
     if (m.role === "user") {
-      out.push({ role: "user", content: m.content });
+      if (m.images?.length) {
+        const parts: any[] = [];
+        if (m.content) parts.push({ type: "text", text: m.content });
+        for (const im of m.images) {
+          parts.push({
+            type: "image_url",
+            image_url: { url: `data:${im.mediaType};base64,${im.data}` },
+          });
+        }
+        out.push({ role: "user", content: parts });
+      } else {
+        out.push({ role: "user", content: m.content });
+      }
     } else if (m.role === "assistant") {
       const msg: any = { role: "assistant", content: m.content || "" };
       if (m.toolCalls?.length) {

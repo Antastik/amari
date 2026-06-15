@@ -63,8 +63,25 @@ export function MessageView({ message: m }: { message: StoredMessage }) {
       <div className="px-4 py-3 group">
         <div className="flex gap-2">
           <span className="text-cyber-cyan select-none">{"❯"}</span>
-          <div className="stream-body text-ink whitespace-pre-wrap flex-1">
-            {m.content}
+          <div className="flex-1">
+            {m.images?.length ? (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {m.images.map((im, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={i}
+                    src={`data:${im.mediaType};base64,${im.data}`}
+                    alt="attachment"
+                    className="max-h-44 rounded-sm border border-line-bright"
+                  />
+                ))}
+              </div>
+            ) : null}
+            {m.content ? (
+              <div className="stream-body text-ink whitespace-pre-wrap">
+                {m.content}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

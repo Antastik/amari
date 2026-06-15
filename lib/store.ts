@@ -109,6 +109,51 @@ export function saveConversations(convos: Conversation[]) {
   }
 }
 
+/**
+ * Read an image File, downscale to a max edge (default 1536px) and re-encode to
+ * JPEG to keep payloads + localStorage small. Falls back to the raw bytes for
+ * formats canvas can't handle (e.g. SVG). Returns base64 (no data: prefix).
+ */
+export async function fileToImagePart(
+  file: File,
+  maxEdge = 1536,
+): Promise<{ mediaType: string; data: string; previewUrl: string }> {
+  const dataUrl: string = await new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result));
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+  try {
+    const img = await new Promise<HTMLImageElement>((res, rej) => {
+      const im = new Image();
+      im.onload = () => res(im);
+      im.onerror = rej;
+      im.src = dataUrl;
+    });
+    const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+    const w = Math.max(1, Math.round(img.width * scale));
+    const h = Math.max(1, Math.round(img.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("no canvas context");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    const out = canvas.toDataURL("image/jpeg", 0.85);
+    return { mediaType: "image/jpeg", data: out.split(",")[1] ?? "", previewUrl: out };
+  } catch {
+    const m = /^data:([^;]+);base64,(.*)$/.exec(dataUrl);
+    return {
+      mediaType: m?.[1] || file.type || "image/png",
+      data: m?.[2] || "",
+      previewUrl: dataUrl,
+    };
+  }
+}
+
 export function titleFrom(text: string): string {
   const t = text.trim().replace(/\s+/g, " ");
   return (t.length > 42 ? t.slice(0, 42) + "…" : t) || "new session";

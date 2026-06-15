@@ -12,6 +12,7 @@
 - 📄 **Files & documents** — open and read **.xlsx / .docx / .pdf / .csv** in-app (no MS Office needed), **sign PDFs**, and attach files for the agent to read.
 - 🔗 **Google Drive + Gmail** — connect your Google account and let the agent search & read your Drive files and email (read-only, local-only).
 - 🔀 **Workflows** — chain agents into reusable multi-step pipelines (e.g. research → draft → review), piping each step's output into the next.
+- 👁️ **Vision** — attach images and send them to multimodal models (Claude, Gemini, GPT-4o, vision-capable Ollama).
 - 💸 **Token & cost meter** — per-conversation token usage with an estimated cost.
 - 🔵 **Cyberpunk CLI aesthetic** — blue neon, scanlines, monospace, glow.
 - 💾 **Local-first** — keys, settings and history live in your browser; the agent's files live on your machine.
@@ -114,7 +115,9 @@ Click **▣ files** (top bar) to open any file from disk in the in-app viewer �
 
 **Signing a PDF:** open it in the viewer → **✎ sign** → draw or type your signature → choose page, position and size → **apply & download** (or save into the workspace). It's a visible signature stamped with [pdf-lib](https://pdf-lib.js.org/) — not a cryptographic/PKI signature.
 
-**Attachments:** in local mode, the 📎 button uploads files into the workspace and tells the agent to read them with its `read_document` tool (which understands spreadsheets, Word docs and PDFs, not just plain text).
+**Attachments (📎 in the composer):**
+- **Images** are sent straight to the model as **vision** input (downscaled to ~1536px client-side). Works in any environment — just make sure your selected model is multimodal (Claude 4.x, Gemini, GPT-4o, or a vision Ollama model like `llama3.2-vision`).
+- **Documents** (local mode) are uploaded into the workspace; the agent reads them with its `read_document` tool (spreadsheets, Word docs and PDFs, not just plain text).
 
 ## Google Drive + Gmail
 
@@ -191,12 +194,11 @@ bin/amari.mjs         cross-platform launcher
 
 ## Roadmap
 
-Shipped: multi-format file viewer · PDF signing · agent file attachments · token/cost meter · Google Drive + Gmail · multi-step workflows.
+Shipped: multi-format file viewer · PDF signing · agent file attachments · token/cost meter · Google Drive + Gmail · multi-step workflows · vision attachments.
 
 Next:
-- Vision attachments (send images to multimodal models)
 - Generic **MCP server** support (connect any MCP server, not just Google)
-- Gmail send/draft (with confirmation)
+- Gmail send/draft + Google Calendar (with confirmation)
 
 PRs and forks welcome.
 

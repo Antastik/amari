@@ -20,10 +20,19 @@ export interface ToolCall {
   arguments: Record<string, unknown>;
 }
 
+/** An inline image (base64, no data: prefix) for vision-capable models. */
+export interface ImagePart {
+  mediaType: string;
+  data: string;
+}
+
 /** A normalized conversation message. */
 export interface AgentMessage {
   role: "user" | "assistant" | "tool";
   content: string;
+
+  /** user-only: images sent to a multimodal model. */
+  images?: ImagePart[];
 
   // assistant-only
   toolCalls?: ToolCall[];

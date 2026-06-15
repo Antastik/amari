@@ -20,7 +20,16 @@ function toAnthropicMessages(messages: AgentMessage[]): any[] {
   const out: any[] = [];
   for (const m of messages) {
     if (m.role === "user") {
-      out.push({ role: "user", content: m.content });
+      if (m.images?.length) {
+        const blocks: any[] = m.images.map((im) => ({
+          type: "image",
+          source: { type: "base64", media_type: im.mediaType, data: im.data },
+        }));
+        if (m.content) blocks.push({ type: "text", text: m.content });
+        out.push({ role: "user", content: blocks });
+      } else {
+        out.push({ role: "user", content: m.content });
+      }
     } else if (m.role === "assistant") {
       // Replay the exact content blocks (incl. signed thinking) when we have
       // them — required for adaptive thinking across tool calls in one request.

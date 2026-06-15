@@ -16,6 +16,7 @@ import {
 } from "@/lib/workflows";
 import {
   DEFAULT_SETTINGS,
+  fileToImagePart,
   loadConversations,
   loadSettings,
   saveConversations,
@@ -43,7 +44,17 @@ export default function Page() {
   const [showSettings, setShowSettings] = useState(false);
 
   const [attachments, setAttachments] = useState<
-    { path: string; name: string; file: File }[]
+    (
+      | {
+          kind: "image";
+          name: string;
+          mediaType: string;
+          data: string;
+          previewUrl: string;
+          file: File;
+        }
+      | { kind: "doc"; name: string; path: string; file: File }
+    )[]
   >([]);
   const [viewerFile, setViewerFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -130,27 +141,46 @@ export default function Page() {
     abortRef.current?.abort();
   }, []);
 
-  const onAttach = useCallback(async (files: FileList | null) => {
-    if (!files?.length) return;
-    setUploading(true);
-    try {
-      for (const file of Array.from(files)) {
-        const fd = new FormData();
-        fd.append("file", file);
-        const res = await fetch("/api/upload", { method: "POST", body: fd });
-        const data = await res.json();
-        if (res.ok && data.path) {
-          setAttachments((prev) => [
-            ...prev,
-            { path: data.path, name: data.name, file },
-          ]);
+  const onAttach = useCallback(
+    async (files: FileList | null) => {
+      if (!files?.length) return;
+      setUploading(true);
+      try {
+        for (const file of Array.from(files)) {
+          const isImg =
+            file.type.startsWith("image/") ||
+            /\.(png|jpe?g|gif|webp|bmp|avif|svg)$/i.test(file.name);
+          if (isImg) {
+            // Vision attachment — inline base64, works in any environment.
+            const part = await fileToImagePart(file);
+            setAttachments((prev) => [
+              ...prev,
+              { kind: "image", name: file.name, file, ...part },
+            ]);
+          } else if (env?.local) {
+            // Document attachment — uploaded to the workspace for read_document.
+            const fd = new FormData();
+            fd.append("file", file);
+            const res = await fetch("/api/upload", { method: "POST", body: fd });
+            const data = await res.json();
+            if (res.ok && data.path) {
+              setAttachments((prev) => [
+                ...prev,
+                { kind: "doc", name: data.name, path: data.path, file },
+              ]);
+            }
+          } else {
+            setStatus("document attachments need local mode");
+            setTimeout(() => setStatus(""), 2500);
+          }
         }
+      } finally {
+        setUploading(false);
+        if (attachInputRef.current) attachInputRef.current.value = "";
       }
-    } finally {
-      setUploading(false);
-      if (attachInputRef.current) attachInputRef.current.value = "";
-    }
-  }, []);
+    },
+    [env],
+  );
 
   // ── send ────────────────────────────────────────────────────────────────
   const send = useCallback(async () => {
@@ -158,11 +188,16 @@ export default function Page() {
     if ((!text && attachments.length === 0) || streaming) return;
 
     const preset = getPreset(settings.agentId);
-    const atts = attachments;
-    const attachNote = atts.length
-      ? `\n\n[Attached files in the workspace: ${atts
-          .map((a) => a.path)
-          .join(", ")} — read them with the read_document tool.]`
+    const docPaths: string[] = [];
+    const images: { mediaType: string; data: string }[] = [];
+    for (const a of attachments) {
+      if (a.kind === "doc") docPaths.push(a.path);
+      else images.push({ mediaType: a.mediaType, data: a.data });
+    }
+    const attachNote = docPaths.length
+      ? `\n\n[Attached files in the workspace: ${docPaths.join(
+          ", ",
+        )} — read them with the read_document tool.]`
       : "";
     const priorMessages: StoredMessage[] = currentConv
       ? currentConv.messages
@@ -170,7 +205,11 @@ export default function Page() {
     const userMsg: StoredMessage = {
       _id: uid(),
       role: "user",
-      content: (text || "(see attached files)") + attachNote,
+      content:
+        (text ||
+          (images.length ? "(see attached image)" : "(see attached files)")) +
+        attachNote,
+      ...(images.length ? { images } : {}),
     };
 
     let convId = currentId;
@@ -691,16 +730,27 @@ export default function Page() {
               <div className="flex flex-wrap gap-1.5 mb-1.5">
                 {attachments.map((a, i) => (
                   <span
-                    key={a.path + i}
+                    key={a.name + i}
                     className="flex items-center gap-1.5 px-2 py-1 text-[11.5px] panel border border-line"
                   >
-                    <button
-                      onClick={() => setViewerFile(a.file)}
-                      className="text-cyber-sky hover:text-cyber-cyan"
-                      title="view"
-                    >
-                      ▣
-                    </button>
+                    {a.kind === "image" ? (
+                      <button onClick={() => setViewerFile(a.file)} title="view">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={a.previewUrl}
+                          alt=""
+                          className="w-5 h-5 object-cover rounded-sm border border-line"
+                        />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setViewerFile(a.file)}
+                        className="text-cyber-sky hover:text-cyber-cyan"
+                        title="view"
+                      >
+                        ▣
+                      </button>
+                    )}
                     <span className="text-ink-dim max-w-[180px] truncate">
                       {a.name}
                     </span>
@@ -718,18 +768,14 @@ export default function Page() {
               </div>
             ) : null}
             <div className="panel neon-border flex items-end gap-2 px-3 py-2">
-              {env?.local ? (
-                <button
-                  onClick={() => attachInputRef.current?.click()}
-                  disabled={streaming || uploading}
-                  className="focus-ring text-ink-dim hover:text-cyber-cyan pt-1 disabled:opacity-50"
-                  title="attach files for the agent to read (xlsx, pdf, docx…)"
-                >
-                  {uploading ? "…" : "📎"}
-                </button>
-              ) : (
-                <span className="text-cyber-cyan select-none pt-1.5">❯</span>
-              )}
+              <button
+                onClick={() => attachInputRef.current?.click()}
+                disabled={streaming || uploading}
+                className="focus-ring text-ink-dim hover:text-cyber-cyan pt-1 disabled:opacity-50"
+                title="attach — images (vision) or, in local mode, docs the agent reads"
+              >
+                {uploading ? "…" : "📎"}
+              </button>
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
