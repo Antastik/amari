@@ -6,6 +6,7 @@ import {
   selectTools,
   type ToolRuntime,
 } from "./tools";
+import { GOOGLE_TOOLS, isGoogleConnected } from "./google-tools";
 
 export interface RunAgentParams {
   providerId: ProviderId;
@@ -65,7 +66,12 @@ export async function runAgent(
   const provider = getProvider(p.providerId);
   const baseURL = p.baseURL || cfg.defaultBaseURL;
   const allowLocal = localToolsEnabled();
-  const tools = selectTools(allowLocal, p.enabledTools);
+  const googleOn = allowLocal ? await isGoogleConnected() : false;
+  const tools = selectTools(
+    allowLocal,
+    p.enabledTools,
+    googleOn ? GOOGLE_TOOLS : [],
+  );
   const toolMap = new Map(tools.map((t) => [t.name, t]));
   const workspace = getWorkspace();
   const toolSchemas = tools.map((t) => ({

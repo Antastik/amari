@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PROVIDERS, PROVIDER_ORDER } from "@/lib/catalog";
 import { TOOL_META } from "@/lib/tool-meta";
 import type { EnvInfo, Effort, Settings } from "@/lib/store";
@@ -22,6 +22,56 @@ export function SettingsModal({
   onRefreshOllama: () => void;
 }) {
   const [advanced, setAdvanced] = useState(false);
+
+  // Google integration state
+  const [g, setG] = useState<{
+    configured: boolean;
+    connected: boolean;
+    email?: string;
+    local?: boolean;
+  } | null>(null);
+  const [gid, setGid] = useState("");
+  const [gsec, setGsec] = useState("");
+  const [gmsg, setGmsg] = useState("");
+  const refreshG = () =>
+    fetch("/api/google")
+      .then((r) => r.json())
+      .then(setG)
+      .catch(() => {});
+  useEffect(() => {
+    refreshG();
+  }, []);
+  const redirect =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/api/google/callback`
+      : "";
+  const saveG = async () => {
+    const res = await fetch("/api/google", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "config",
+        clientId: gid,
+        clientSecret: gsec,
+      }),
+    });
+    const d = await res.json();
+    setGmsg(res.ok ? "saved ✓ — now sign in" : d.error || "error");
+    if (res.ok) {
+      setGid("");
+      setGsec("");
+    }
+    refreshG();
+  };
+  const disconnectG = async () => {
+    await fetch("/api/google", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "disconnect" }),
+    });
+    setGmsg("");
+    refreshG();
+  };
 
   const setKey = (id: ProviderId, v: string) =>
     onChange({ apiKeys: { ...settings.apiKeys, [id]: v } });
@@ -152,6 +202,101 @@ export function SettingsModal({
             >
               ↻ refresh ollama models
             </button>
+          </section>
+
+          {/* Google */}
+          <section>
+            <h3 className="tag mb-2">google · drive + gmail</h3>
+            {env && !env.local ? (
+              <p className="text-[11px] text-ink-faint">
+                Requires local mode — OAuth and token storage need a server you
+                control.
+              </p>
+            ) : (
+              <div className="space-y-2 text-[12.5px]">
+                {g?.connected ? (
+                  <div className="flex items-center justify-between border border-line px-3 py-2 bg-bg-soft">
+                    <span style={{ color: "var(--green)" }}>
+                      ● connected{g.email ? ` · ${g.email}` : ""}
+                    </span>
+                    <button
+                      onClick={disconnectG}
+                      className="focus-ring text-ink-faint hover:text-cyber-red text-[11px]"
+                    >
+                      disconnect
+                    </button>
+                  </div>
+                ) : g?.configured ? (
+                  <a
+                    href="/api/google/auth"
+                    className="focus-ring inline-flex items-center gap-2 px-3 py-1.5 border border-line-bright text-cyber-cyan hover:shadow-glow"
+                  >
+                    Sign in with Google →
+                  </a>
+                ) : null}
+
+                <details className="text-[12px]" open={!g?.configured}>
+                  <summary className="cursor-pointer tag">
+                    oauth client setup
+                  </summary>
+                  <div className="mt-2 space-y-2">
+                    <p className="text-[11px] text-ink-faint leading-relaxed">
+                      In{" "}
+                      <a
+                        href="https://console.cloud.google.com/"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Google Cloud
+                      </a>
+                      : create a project, enable the <b>Drive API</b> +{" "}
+                      <b>Gmail API</b>, set up the OAuth consent screen (add
+                      yourself as a test user), then create an{" "}
+                      <b>OAuth client → Web application</b> and add this exact
+                      redirect URI:
+                    </p>
+                    <code className="block bg-bg-soft border border-line px-2 py-1 break-all text-cyber-sky">
+                      {redirect}
+                    </code>
+                    <input
+                      value={gid}
+                      onChange={(e) => setGid(e.target.value)}
+                      placeholder="Client ID"
+                      className="focus-ring w-full bg-bg-soft border border-line px-3 py-1.5"
+                    />
+                    <input
+                      value={gsec}
+                      onChange={(e) => setGsec(e.target.value)}
+                      type="password"
+                      placeholder="Client secret"
+                      className="focus-ring w-full bg-bg-soft border border-line px-3 py-1.5"
+                    />
+                    <button
+                      onClick={saveG}
+                      className="focus-ring px-3 py-1.5 border border-line text-cyber-cyan hover:shadow-glow text-[12px]"
+                    >
+                      save credentials
+                    </button>
+                    {gmsg ? (
+                      <p
+                        className="text-[11px]"
+                        style={{
+                          color: gmsg.includes("error")
+                            ? "var(--red)"
+                            : "var(--green)",
+                        }}
+                      >
+                        {gmsg}
+                      </p>
+                    ) : null}
+                    <p className="text-[10.5px] text-ink-faint">
+                      Stored locally in ~/.amari/ (chmod 600) — never in the
+                      browser or git. Read-only Drive + Gmail access.
+                    </p>
+                  </div>
+                </details>
+              </div>
+            )}
           </section>
 
           {/* Tools */}

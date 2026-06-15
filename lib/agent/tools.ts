@@ -327,8 +327,9 @@ export const ALL_TOOLS: ToolRuntime[] = [
 export function selectTools(
   allowLocal: boolean,
   enabledNames?: string[],
+  extra: ToolRuntime[] = [],
 ): ToolRuntime[] {
-  return ALL_TOOLS.filter((t) => {
+  return [...ALL_TOOLS, ...extra].filter((t) => {
     if (t.local && !allowLocal) return false;
     if (enabledNames && !enabledNames.includes(t.name)) return false;
     return true;

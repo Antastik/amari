@@ -19,6 +19,10 @@ const ALL = [
   "run_shell",
   "web_fetch",
   "web_search",
+  "gdrive_search",
+  "gdrive_read",
+  "gmail_search",
+  "gmail_read",
 ];
 
 export const AGENT_PRESETS: AgentPreset[] = [
@@ -48,7 +52,17 @@ export const AGENT_PRESETS: AgentPreset[] = [
     id: "research",
     name: "RESEARCH",
     blurb: "Web researcher — searches, reads sources, synthesizes.",
-    defaultTools: ["web_search", "web_fetch", "read_file", "read_document", "write_file"],
+    defaultTools: [
+      "web_search",
+      "web_fetch",
+      "read_file",
+      "read_document",
+      "write_file",
+      "gdrive_search",
+      "gdrive_read",
+      "gmail_search",
+      "gmail_read",
+    ],
     system:
       "You are AMARI in RESEARCH mode. Use web_search to find sources and web_fetch to read them. " +
       "Cross-check claims across multiple sources, cite URLs inline, and synthesize a clear, well-structured answer. " +

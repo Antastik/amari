@@ -10,6 +10,7 @@
 - 🛠️ **Real agent, not just chat** — the agent can read/write files, run shell commands, and search/fetch the web, in a sandboxed workspace.
 - 🎭 **Agent modes** — `BUILD` (full access), `PLAN` (read-only), `RESEARCH` (web), `CHAT` (no tools).
 - 📄 **Files & documents** — open and read **.xlsx / .docx / .pdf / .csv** in-app (no MS Office needed), **sign PDFs**, and attach files for the agent to read.
+- 🔗 **Google Drive + Gmail** — connect your Google account and let the agent search & read your Drive files and email (read-only, local-only).
 - 💸 **Token & cost meter** — per-conversation token usage with an estimated cost.
 - 🔵 **Cyberpunk CLI aesthetic** — blue neon, scanlines, monospace, glow.
 - 💾 **Local-first** — keys, settings and history live in your browser; the agent's files live on your machine.
@@ -104,6 +105,22 @@ Click **▣ files** (top bar) to open any file from disk in the in-app viewer �
 
 **Attachments:** in local mode, the 📎 button uploads files into the workspace and tells the agent to read them with its `read_document` tool (which understands spreadsheets, Word docs and PDFs, not just plain text).
 
+## Google Drive + Gmail
+
+Amari can read your Google Drive and Gmail with a native **Sign in with Google** flow (read-only). Because Google requires a registered OAuth client, there's a one-time setup:
+
+1. In the [Google Cloud Console](https://console.cloud.google.com/): create a project, and under **APIs & Services → Library** enable the **Google Drive API** and **Gmail API**.
+2. **OAuth consent screen** → External → add yourself under **Test users** (no verification needed for personal use).
+3. **Credentials → Create credentials → OAuth client ID → Web application.** Add this redirect URI (match your port — `3000` for `npm run dev`, `4173` for `npm run launch`):
+   ```
+   http://localhost:3000/api/google/callback
+   ```
+4. In Amari: **⚙ config → google**, paste the **Client ID** + **Client secret**, save, then **Sign in with Google**. (Or set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` in `.env.local`.)
+
+Once connected, the agent gains four tools — `gdrive_search`, `gdrive_read`, `gmail_search`, `gmail_read` (in BUILD and RESEARCH modes). Ask things like *"find my Q3 budget sheet in Drive and summarize it"* or *"what did Alice email me about the launch last week?"*
+
+> Scopes are **read-only** (`drive.readonly`, `gmail.readonly`). Credentials and tokens are stored locally in `~/.amari/` with `chmod 600` — never in the browser or git. Google integration is **local-mode only** (the OAuth redirect + token store need a server you control). It is not a cryptographic identity — just API access scoped to what you consent to.
+
 ## Deploy to Vercel (free)
 
 Amari runs on Vercel out of the box — useful for chatting with API providers from anywhere.
@@ -163,12 +180,13 @@ bin/amari.mjs         cross-platform launcher
 
 ## Roadmap
 
-Shipped: multi-format file viewer · PDF signing · agent file attachments · token/cost meter.
+Shipped: multi-format file viewer · PDF signing · agent file attachments · token/cost meter · Google Drive + Gmail.
 
 Next:
-- **MCP server support** — connect Google Drive / Gmail and other [MCP](https://modelcontextprotocol.io) servers (Drive/Gmail need your Google OAuth)
 - Saved multi-step **workflows** (chain agents/prompts)
 - Vision attachments (send images to multimodal models)
+- Generic **MCP server** support (connect any MCP server, not just Google)
+- Gmail send/draft (with confirmation)
 
 PRs and forks welcome.
 

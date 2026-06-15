@@ -16,4 +16,8 @@ export const TOOL_META: ToolMeta[] = [
   { name: "run_shell", local: true, desc: "Run a shell command (60s)" },
   { name: "web_fetch", local: false, desc: "Fetch a URL's text" },
   { name: "web_search", local: false, desc: "Search the web (DuckDuckGo)" },
+  { name: "gdrive_search", local: true, desc: "Search Google Drive (needs sign-in)" },
+  { name: "gdrive_read", local: true, desc: "Read a Drive file (needs sign-in)" },
+  { name: "gmail_search", local: true, desc: "Search Gmail (needs sign-in)" },
+  { name: "gmail_read", local: true, desc: "Read a Gmail message (needs sign-in)" },
 ];
