@@ -6,7 +6,14 @@ import { AGENT_PRESETS, getPreset } from "@/lib/agent/prompts";
 import { MessageView } from "@/components/Message";
 import { SettingsModal } from "@/components/Settings";
 import { FileViewer } from "@/components/FileViewer";
+import { Workflows } from "@/components/Workflows";
 import { estimateCostUSD, fmtTokens } from "@/lib/pricing";
+import {
+  loadWorkflows,
+  resolveTemplate,
+  saveWorkflows,
+  type Workflow,
+} from "@/lib/workflows";
 import {
   DEFAULT_SETTINGS,
   loadConversations,
@@ -40,6 +47,8 @@ export default function Page() {
   >([]);
   const [viewerFile, setViewerFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [showWorkflows, setShowWorkflows] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -58,6 +67,7 @@ export default function Page() {
     const c = loadConversations();
     setConvos(c);
     setCurrentId(c[0]?.id ?? null);
+    setWorkflows(loadWorkflows());
     setMounted(true);
     refreshEnv();
   }, []);
@@ -68,6 +78,9 @@ export default function Page() {
   useEffect(() => {
     if (mounted) saveConversations(convos);
   }, [convos, mounted]);
+  useEffect(() => {
+    if (mounted) saveWorkflows(workflows);
+  }, [workflows, mounted]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -309,6 +322,170 @@ export default function Page() {
     setStatus("");
   }, [input, streaming, settings, currentConv, currentId, attachments]);
 
+  const runWorkflow = useCallback(
+    async (wf: Workflow, runInput: string) => {
+      if (streaming) return;
+      setShowWorkflows(false);
+      const inputText = runInput.trim();
+      const convId = uid();
+      const userMsg: StoredMessage = {
+        _id: uid(),
+        role: "user",
+        content: inputText || "(workflow run)",
+      };
+      const conv: Conversation = {
+        id: convId,
+        title: `▷ ${wf.name}`,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        agentId: settings.agentId,
+        providerId: settings.providerId,
+        model: settings.model,
+        messages: [userMsg],
+      };
+      setConvos((prev) => [conv, ...prev]);
+      setCurrentId(convId);
+      setStreaming(true);
+
+      const all: StoredMessage[] = [userMsg];
+      const usageAcc = { inputTokens: 0, outputTokens: 0 };
+      const commit = () =>
+        setConvos((prev) =>
+          prev.map((c) =>
+            c.id === convId
+              ? {
+                  ...c,
+                  updatedAt: Date.now(),
+                  usage: { ...usageAcc },
+                  messages: all.map((m) => ({ ...m })),
+                }
+              : c,
+          ),
+        );
+
+      const stepOutputs: string[] = [];
+      for (let i = 0; i < wf.steps.length; i++) {
+        const step = wf.steps[i];
+        const preset = getPreset(step.agentId);
+        const provId = (step.providerId || settings.providerId) as ProviderId;
+        const model =
+          step.model?.trim() ||
+          (step.providerId
+            ? PROVIDERS[provId].models[0]?.id ?? settings.model
+            : settings.model);
+        const resolved = resolveTemplate(step.prompt, {
+          input: inputText,
+          previous: stepOutputs[i - 1] ?? "",
+          steps: stepOutputs,
+        });
+
+        all.push({
+          _id: uid(),
+          role: "assistant",
+          _note: "info",
+          content: `▷ step ${i + 1}/${wf.steps.length} · ${step.name}  —  ${preset.name} · ${PROVIDERS[provId].label}/${model}`,
+        });
+        setStatus(`workflow · step ${i + 1}/${wf.steps.length} · ${step.name}`);
+        commit();
+
+        let current: StoredMessage | null = null;
+        let stepText = "";
+        const ac = new AbortController();
+        abortRef.current = ac;
+
+        await streamChat(
+          {
+            providerId: provId,
+            model,
+            apiKey: settings.apiKeys[provId],
+            baseURL: settings.baseURLs[provId] || undefined,
+            system: preset.system,
+            messages: [{ role: "user", content: resolved }],
+            enabledTools: preset.defaultTools.filter(
+              (t) => !settings.disabledTools.includes(t),
+            ),
+            effort: settings.effort,
+          },
+          (e) => {
+            switch (e.type) {
+              case "turn":
+                current = { _id: uid(), role: "assistant", content: "" };
+                all.push(current);
+                commit();
+                break;
+              case "text":
+                if (!current) {
+                  current = { _id: uid(), role: "assistant", content: "" };
+                  all.push(current);
+                }
+                current.content += e.delta;
+                stepText += e.delta;
+                commit();
+                break;
+              case "thinking":
+                if (current) {
+                  current.thinking = (current.thinking || "") + e.delta;
+                  commit();
+                }
+                break;
+              case "tool_call":
+                if (!current) {
+                  current = { _id: uid(), role: "assistant", content: "" };
+                  all.push(current);
+                }
+                current.toolCalls = [
+                  ...(current.toolCalls || []),
+                  {
+                    id: e.id,
+                    name: e.name,
+                    arguments: (e.arguments as Record<string, unknown>) || {},
+                  },
+                ];
+                commit();
+                break;
+              case "tool_result":
+                all.push({
+                  _id: uid(),
+                  role: "tool",
+                  toolCallId: e.id,
+                  toolName: e.name,
+                  content: e.content,
+                  isError: e.isError,
+                });
+                current = null;
+                commit();
+                break;
+              case "usage":
+                usageAcc.inputTokens += e.inputTokens || 0;
+                usageAcc.outputTokens += e.outputTokens || 0;
+                commit();
+                break;
+              case "error":
+                all.push({
+                  _id: uid(),
+                  role: "assistant",
+                  content: e.message,
+                  _note: "error",
+                });
+                current = null;
+                commit();
+                break;
+            }
+          },
+          ac.signal,
+        );
+
+        stepOutputs.push(stepText.trim());
+        if (ac.signal.aborted) break;
+      }
+
+      abortRef.current = null;
+      setStreaming(false);
+      setStatus("");
+    },
+    [streaming, settings],
+  );
+
   const modelListId = `models-${settings.providerId}`;
   const modelOptions =
     settings.providerId === "ollama" && env?.ollama.models?.length
@@ -462,6 +639,13 @@ export default function Page() {
                 ▮ {status}
               </span>
             ) : null}
+            <button
+              onClick={() => setShowWorkflows(true)}
+              className="focus-ring px-2 py-1 text-ink-dim hover:text-cyber-cyan text-[13px]"
+              title="workflows — chain agents into pipelines"
+            >
+              ▷ flows
+            </button>
             <button
               onClick={() => openInputRef.current?.click()}
               className="focus-ring px-2 py-1 text-ink-dim hover:text-cyber-cyan text-[13px]"
@@ -624,6 +808,16 @@ export default function Page() {
 
       {viewerFile ? (
         <FileViewer file={viewerFile} onClose={() => setViewerFile(null)} />
+      ) : null}
+
+      {showWorkflows ? (
+        <Workflows
+          workflows={workflows}
+          onChange={setWorkflows}
+          onClose={() => setShowWorkflows(false)}
+          onRun={runWorkflow}
+          streaming={streaming}
+        />
       ) : null}
 
       {showSettings ? (

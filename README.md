@@ -11,6 +11,7 @@
 - 🎭 **Agent modes** — `BUILD` (full access), `PLAN` (read-only), `RESEARCH` (web), `CHAT` (no tools).
 - 📄 **Files & documents** — open and read **.xlsx / .docx / .pdf / .csv** in-app (no MS Office needed), **sign PDFs**, and attach files for the agent to read.
 - 🔗 **Google Drive + Gmail** — connect your Google account and let the agent search & read your Drive files and email (read-only, local-only).
+- 🔀 **Workflows** — chain agents into reusable multi-step pipelines (e.g. research → draft → review), piping each step's output into the next.
 - 💸 **Token & cost meter** — per-conversation token usage with an estimated cost.
 - 🔵 **Cyberpunk CLI aesthetic** — blue neon, scanlines, monospace, glow.
 - 💾 **Local-first** — keys, settings and history live in your browser; the agent's files live on your machine.
@@ -89,6 +90,16 @@ Switch modes from the top bar:
 - Filesystem + shell tools are **automatically disabled** in hosted/serverless environments (Vercel), where only web tools run. Force-disable locally with `AMARI_DISABLE_LOCAL_TOOLS=1`.
 
 ---
+
+## Workflows
+
+Open **▷ flows** (top bar) to chain agents into reusable pipelines. Each step runs an agent mode (with an optional provider/model override) on a prompt template, and outputs pipe forward:
+
+- `{{input}}` — the run input
+- `{{previous}}` — the previous step's output
+- `{{step1}}` … `{{stepN}}` — any earlier step's output
+
+Two examples ship by default — **Research → Brief** and **Plan → Build → Review**. Build your own, hit **▷ run workflow**, and each step executes live in the transcript. Steps reuse the normal agent loop, so every tool (files, shell, web, Drive/Gmail) is available inside a workflow.
 
 ## Files & documents
 
@@ -180,10 +191,9 @@ bin/amari.mjs         cross-platform launcher
 
 ## Roadmap
 
-Shipped: multi-format file viewer · PDF signing · agent file attachments · token/cost meter · Google Drive + Gmail.
+Shipped: multi-format file viewer · PDF signing · agent file attachments · token/cost meter · Google Drive + Gmail · multi-step workflows.
 
 Next:
-- Saved multi-step **workflows** (chain agents/prompts)
 - Vision attachments (send images to multimodal models)
 - Generic **MCP server** support (connect any MCP server, not just Google)
 - Gmail send/draft (with confirmation)

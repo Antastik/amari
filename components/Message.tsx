@@ -39,6 +39,14 @@ function argPreview(args: any): string {
 }
 
 export function MessageView({ message: m }: { message: StoredMessage }) {
+  if (m._note === "info") {
+    return (
+      <div className="px-4 py-2 my-2 text-[12px] text-cyber-violet border-l-2 border-cyber-violet bg-[rgba(155,107,255,0.06)] tracking-wide">
+        {m.content}
+      </div>
+    );
+  }
+
   if (m._note === "error") {
     return (
       <div className="px-4 py-2 my-1 text-[13px] border-l-2 border-cyber-red bg-[rgba(255,77,109,0.06)] text-cyber-red">
