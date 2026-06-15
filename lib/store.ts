@@ -40,6 +40,7 @@ export interface Conversation {
   providerId: ProviderId;
   model: string;
   messages: StoredMessage[];
+  usage?: { inputTokens: number; outputTokens: number };
 }
 
 export const DEFAULT_SETTINGS: Settings = {

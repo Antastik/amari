@@ -9,6 +9,8 @@
 - 🧠 **Bring any model** — Claude (Opus/Sonnet/Haiku), Gemini, Kimi (Moonshot), OpenAI, OpenRouter, or anything you run locally with **Ollama**.
 - 🛠️ **Real agent, not just chat** — the agent can read/write files, run shell commands, and search/fetch the web, in a sandboxed workspace.
 - 🎭 **Agent modes** — `BUILD` (full access), `PLAN` (read-only), `RESEARCH` (web), `CHAT` (no tools).
+- 📄 **Files & documents** — open and read **.xlsx / .docx / .pdf / .csv** in-app (no MS Office needed), **sign PDFs**, and attach files for the agent to read.
+- 💸 **Token & cost meter** — per-conversation token usage with an estimated cost.
 - 🔵 **Cyberpunk CLI aesthetic** — blue neon, scanlines, monospace, glow.
 - 💾 **Local-first** — keys, settings and history live in your browser; the agent's files live on your machine.
 - ☁️ **Deployable** — ships to Vercel (or any Node host) for API-only use.
@@ -75,6 +77,7 @@ Switch modes from the top bar:
 | Tool | Scope |
 |------|-------|
 | `list_dir`, `read_file`, `write_file`, `edit_file` | workspace files (local only) |
+| `read_document` | read xlsx / docx / pdf / csv as text (local only) |
 | `run_shell` | shell command, 60s timeout, runs in the workspace (local only) |
 | `web_fetch`, `web_search` | the open web (works anywhere) |
 
@@ -85,6 +88,21 @@ Switch modes from the top bar:
 - Filesystem + shell tools are **automatically disabled** in hosted/serverless environments (Vercel), where only web tools run. Force-disable locally with `AMARI_DISABLE_LOCAL_TOOLS=1`.
 
 ---
+
+## Files & documents
+
+Click **▣ files** (top bar) to open any file from disk in the in-app viewer — no Microsoft Office or extra apps required:
+
+| Format | Rendered as |
+|--------|-------------|
+| `.xlsx` / `.xls` / `.csv` | spreadsheet with sheet tabs |
+| `.docx` | formatted document |
+| `.pdf` | native PDF view — plus a **✎ sign** button |
+| images, `.txt` / `.md` / code / `.json` | inline |
+
+**Signing a PDF:** open it in the viewer → **✎ sign** → draw or type your signature → choose page, position and size → **apply & download** (or save into the workspace). It's a visible signature stamped with [pdf-lib](https://pdf-lib.js.org/) — not a cryptographic/PKI signature.
+
+**Attachments:** in local mode, the 📎 button uploads files into the workspace and tells the agent to read them with its `read_document` tool (which understands spreadsheets, Word docs and PDFs, not just plain text).
 
 ## Deploy to Vercel (free)
 
@@ -143,12 +161,14 @@ bin/amari.mjs         cross-platform launcher
 
 ---
 
-## Roadmap ideas
+## Roadmap
 
+Shipped: multi-format file viewer · PDF signing · agent file attachments · token/cost meter.
+
+Next:
+- **MCP server support** — connect Google Drive / Gmail and other [MCP](https://modelcontextprotocol.io) servers (Drive/Gmail need your Google OAuth)
 - Saved multi-step **workflows** (chain agents/prompts)
-- MCP server support
-- Image / file attachments
-- Per-conversation model + token/cost meter
+- Vision attachments (send images to multimodal models)
 
 PRs and forks welcome.
 

@@ -234,6 +234,76 @@ a:hover {
   color: var(--ink);
 }
 
+/* ── Document / spreadsheet viewer ────────────────────────────────────────── */
+.sheet-html table {
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.sheet-html td,
+.sheet-html th {
+  border: 1px solid var(--line);
+  padding: 3px 9px;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  text-align: left;
+}
+.sheet-html tr:first-child td {
+  color: var(--cyan);
+  background: rgba(0, 229, 255, 0.05);
+  position: sticky;
+  top: 0;
+}
+.sheet-html tr:hover td {
+  background: rgba(43, 123, 255, 0.06);
+}
+
+.doc-html {
+  color: #d8e6f5;
+  line-height: 1.7;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.doc-html h1,
+.doc-html h2,
+.doc-html h3,
+.doc-html h4 {
+  color: var(--cyan);
+  font-weight: 700;
+  margin: 1.2em 0 0.5em;
+  line-height: 1.3;
+}
+.doc-html h1 {
+  font-size: 1.6em;
+}
+.doc-html h2 {
+  font-size: 1.3em;
+}
+.doc-html p {
+  margin: 0 0 0.85em;
+}
+.doc-html a {
+  color: var(--sky);
+}
+.doc-html ul,
+.doc-html ol {
+  padding-left: 1.5em;
+  margin: 0 0 0.85em;
+}
+.doc-html img {
+  max-width: 100%;
+  height: auto;
+}
+.doc-html table {
+  border-collapse: collapse;
+  margin: 1em 0;
+  width: 100%;
+}
+.doc-html td,
+.doc-html th {
+  border: 1px solid var(--line-bright);
+  padding: 4px 10px;
+}
+
 /* Focus ring */
 .focus-ring:focus-visible {
   outline: none;

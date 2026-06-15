@@ -13,6 +13,7 @@ export interface AgentPreset {
 const ALL = [
   "list_dir",
   "read_file",
+  "read_document",
   "write_file",
   "edit_file",
   "run_shell",
@@ -36,7 +37,7 @@ export const AGENT_PRESETS: AgentPreset[] = [
     id: "plan",
     name: "PLAN",
     blurb: "Read-only analyst — explores and proposes, never modifies.",
-    defaultTools: ["list_dir", "read_file", "web_fetch", "web_search"],
+    defaultTools: ["list_dir", "read_file", "read_document", "web_fetch", "web_search"],
     system:
       "You are AMARI in PLAN mode: a read-only software architect. " +
       "Explore the workspace and the web to understand the problem, then produce a clear, step-by-step plan. " +
@@ -47,7 +48,7 @@ export const AGENT_PRESETS: AgentPreset[] = [
     id: "research",
     name: "RESEARCH",
     blurb: "Web researcher — searches, reads sources, synthesizes.",
-    defaultTools: ["web_search", "web_fetch", "read_file", "write_file"],
+    defaultTools: ["web_search", "web_fetch", "read_file", "read_document", "write_file"],
     system:
       "You are AMARI in RESEARCH mode. Use web_search to find sources and web_fetch to read them. " +
       "Cross-check claims across multiple sources, cite URLs inline, and synthesize a clear, well-structured answer. " +

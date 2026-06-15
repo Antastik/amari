@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
+import { documentToText } from "../documents";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Agent tools. File/shell tools are sandboxed to a workspace directory and only
@@ -109,6 +110,30 @@ const readFile: ToolRuntime = {
     const file = resolveInWorkspace(ctx.workspace, args.path);
     const data = await fs.readFile(file, "utf8");
     return { content: clip(data) };
+  },
+};
+
+const readDocument: ToolRuntime = {
+  name: "read_document",
+  description:
+    "Read a document and return its text content. Supports spreadsheets (.xlsx/.xls/.csv → CSV), Word (.docx), PDF (.pdf), and plain text/code. Use this instead of read_file for spreadsheets, Word docs, and PDFs.",
+  local: true,
+  parameters: {
+    type: "object",
+    properties: {
+      path: {
+        type: "string",
+        description:
+          "Relative path to the document in the workspace, e.g. uploads/report.pdf",
+      },
+    },
+    required: ["path"],
+  },
+  async run(args, ctx) {
+    const file = resolveInWorkspace(ctx.workspace, args.path);
+    const buf = await fs.readFile(file);
+    const text = await documentToText(path.basename(file), buf);
+    return { content: text };
   },
 };
 
@@ -290,6 +315,7 @@ const webSearch: ToolRuntime = {
 export const ALL_TOOLS: ToolRuntime[] = [
   listDir,
   readFile,
+  readDocument,
   writeFile,
   editFile,
   runShell,

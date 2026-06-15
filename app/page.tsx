@@ -5,6 +5,8 @@ import { PROVIDERS, PROVIDER_ORDER } from "@/lib/catalog";
 import { AGENT_PRESETS, getPreset } from "@/lib/agent/prompts";
 import { MessageView } from "@/components/Message";
 import { SettingsModal } from "@/components/Settings";
+import { FileViewer } from "@/components/FileViewer";
+import { estimateCostUSD, fmtTokens } from "@/lib/pricing";
 import {
   DEFAULT_SETTINGS,
   loadConversations,
@@ -33,8 +35,16 @@ export default function Page() {
   const [env, setEnv] = useState<EnvInfo | null>(null);
   const [showSettings, setShowSettings] = useState(false);
 
+  const [attachments, setAttachments] = useState<
+    { path: string; name: string; file: File }[]
+  >([]);
+  const [viewerFile, setViewerFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const attachInputRef = useRef<HTMLInputElement>(null);
+  const openInputRef = useRef<HTMLInputElement>(null);
 
   const currentConv = useMemo(
     () => convos.find((c) => c.id === currentId) ?? null,
@@ -107,16 +117,48 @@ export default function Page() {
     abortRef.current?.abort();
   }, []);
 
+  const onAttach = useCallback(async (files: FileList | null) => {
+    if (!files?.length) return;
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch("/api/upload", { method: "POST", body: fd });
+        const data = await res.json();
+        if (res.ok && data.path) {
+          setAttachments((prev) => [
+            ...prev,
+            { path: data.path, name: data.name, file },
+          ]);
+        }
+      }
+    } finally {
+      setUploading(false);
+      if (attachInputRef.current) attachInputRef.current.value = "";
+    }
+  }, []);
+
   // ── send ────────────────────────────────────────────────────────────────
   const send = useCallback(async () => {
     const text = input.trim();
-    if (!text || streaming) return;
+    if ((!text && attachments.length === 0) || streaming) return;
 
     const preset = getPreset(settings.agentId);
+    const atts = attachments;
+    const attachNote = atts.length
+      ? `\n\n[Attached files in the workspace: ${atts
+          .map((a) => a.path)
+          .join(", ")} — read them with the read_document tool.]`
+      : "";
     const priorMessages: StoredMessage[] = currentConv
       ? currentConv.messages
       : [];
-    const userMsg: StoredMessage = { _id: uid(), role: "user", content: text };
+    const userMsg: StoredMessage = {
+      _id: uid(),
+      role: "user",
+      content: (text || "(see attached files)") + attachNote,
+    };
 
     let convId = currentId;
     if (!currentConv) {
@@ -136,12 +178,15 @@ export default function Page() {
     }
 
     setInput("");
+    setAttachments([]);
     setStreaming(true);
     setStatus("connecting…");
 
     const live: StoredMessage[] = [];
     let current: StoredMessage | null = null;
     const cid = convId!;
+    const priorUsage = currentConv?.usage ?? { inputTokens: 0, outputTokens: 0 };
+    const usageAcc = { inputTokens: 0, outputTokens: 0 };
 
     const commit = () => {
       setConvos((prev) =>
@@ -150,6 +195,10 @@ export default function Page() {
             ? {
                 ...c,
                 updatedAt: Date.now(),
+                usage: {
+                  inputTokens: priorUsage.inputTokens + usageAcc.inputTokens,
+                  outputTokens: priorUsage.outputTokens + usageAcc.outputTokens,
+                },
                 messages: [
                   ...priorMessages,
                   userMsg,
@@ -240,6 +289,11 @@ export default function Page() {
             current = null;
             commit();
             break;
+          case "usage":
+            usageAcc.inputTokens += e.inputTokens || 0;
+            usageAcc.outputTokens += e.outputTokens || 0;
+            commit();
+            break;
           case "done":
             setStatus("");
             break;
@@ -253,13 +307,24 @@ export default function Page() {
     abortRef.current = null;
     setStreaming(false);
     setStatus("");
-  }, [input, streaming, settings, currentConv, currentId]);
+  }, [input, streaming, settings, currentConv, currentId, attachments]);
 
   const modelListId = `models-${settings.providerId}`;
   const modelOptions =
     settings.providerId === "ollama" && env?.ollama.models?.length
       ? env.ollama.models
       : providerCfg.models.map((m) => m.id);
+
+  const convUsage = currentConv?.usage;
+  const convCost =
+    convUsage && currentConv
+      ? estimateCostUSD(
+          currentConv.providerId,
+          currentConv.model,
+          convUsage.inputTokens,
+          convUsage.outputTokens,
+        )
+      : null;
 
   // ── render ────────────────────────────────────────────────────────────────
   return (
@@ -398,6 +463,13 @@ export default function Page() {
               </span>
             ) : null}
             <button
+              onClick={() => openInputRef.current?.click()}
+              className="focus-ring px-2 py-1 text-ink-dim hover:text-cyber-cyan text-[13px]"
+              title="open a file to view — xlsx, pdf, docx, csv, image…"
+            >
+              ▣ files
+            </button>
+            <button
               onClick={() => setShowSettings(true)}
               className="focus-ring px-2 py-1 text-ink-dim hover:text-cyber-cyan text-[13px]"
               title="settings"
@@ -431,8 +503,49 @@ export default function Page() {
         {/* Composer */}
         <div className="border-t border-line bg-bg-soft/50 px-3 py-3">
           <div className="max-w-3xl mx-auto">
+            {attachments.length ? (
+              <div className="flex flex-wrap gap-1.5 mb-1.5">
+                {attachments.map((a, i) => (
+                  <span
+                    key={a.path + i}
+                    className="flex items-center gap-1.5 px-2 py-1 text-[11.5px] panel border border-line"
+                  >
+                    <button
+                      onClick={() => setViewerFile(a.file)}
+                      className="text-cyber-sky hover:text-cyber-cyan"
+                      title="view"
+                    >
+                      ▣
+                    </button>
+                    <span className="text-ink-dim max-w-[180px] truncate">
+                      {a.name}
+                    </span>
+                    <button
+                      onClick={() =>
+                        setAttachments((prev) => prev.filter((_, j) => j !== i))
+                      }
+                      className="text-ink-faint hover:text-cyber-red"
+                      title="remove"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : null}
             <div className="panel neon-border flex items-end gap-2 px-3 py-2">
-              <span className="text-cyber-cyan select-none pt-1.5">❯</span>
+              {env?.local ? (
+                <button
+                  onClick={() => attachInputRef.current?.click()}
+                  disabled={streaming || uploading}
+                  className="focus-ring text-ink-dim hover:text-cyber-cyan pt-1 disabled:opacity-50"
+                  title="attach files for the agent to read (xlsx, pdf, docx…)"
+                >
+                  {uploading ? "…" : "📎"}
+                </button>
+              ) : (
+                <span className="text-cyber-cyan select-none pt-1.5">❯</span>
+              )}
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -469,18 +582,49 @@ export default function Page() {
                 </button>
               )}
             </div>
-            <div className="flex justify-between mt-1.5 px-1">
-              <span className="tag">
+            <div className="flex justify-between items-center mt-1.5 px-1 gap-2">
+              <span className="tag truncate">
                 {providerCfg.label} / {settings.model || "—"} ·{" "}
                 {getPreset(settings.agentId).name}
               </span>
-              <span className="tag">
+              {convUsage ? (
+                <span className="tag whitespace-nowrap text-ink-dim">
+                  ↑{fmtTokens(convUsage.inputTokens)} ↓
+                  {fmtTokens(convUsage.outputTokens)}
+                  {convCost != null
+                    ? ` · ~$${convCost.toFixed(convCost < 1 ? 4 : 2)}`
+                    : ""}
+                </span>
+              ) : null}
+              <span className="tag whitespace-nowrap">
                 {env?.local ? "local" : "hosted"} · effort {settings.effort}
               </span>
             </div>
           </div>
         </div>
       </main>
+
+      <input
+        ref={openInputRef}
+        type="file"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) setViewerFile(f);
+          e.currentTarget.value = "";
+        }}
+      />
+      <input
+        ref={attachInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={(e) => onAttach(e.target.files)}
+      />
+
+      {viewerFile ? (
+        <FileViewer file={viewerFile} onClose={() => setViewerFile(null)} />
+      ) : null}
 
       {showSettings ? (
         <SettingsModal

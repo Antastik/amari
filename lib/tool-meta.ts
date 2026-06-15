@@ -10,6 +10,7 @@ export interface ToolMeta {
 export const TOOL_META: ToolMeta[] = [
   { name: "list_dir", local: true, desc: "List files in the workspace" },
   { name: "read_file", local: true, desc: "Read a workspace file" },
+  { name: "read_document", local: true, desc: "Read xlsx / docx / pdf as text" },
   { name: "write_file", local: true, desc: "Create / overwrite a file" },
   { name: "edit_file", local: true, desc: "Find-and-replace in a file" },
   { name: "run_shell", local: true, desc: "Run a shell command (60s)" },
